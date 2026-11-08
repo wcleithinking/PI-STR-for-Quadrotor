@@ -1,0 +1,12 @@
+# Optional 3-D environment dependencies (docs/3D_ENVIRONMENT.md).
+#
+# The rest of the repository runs on numpy/scipy/matplotlib alone; this file adds
+# the MuJoCo world. Install with `make env-setup`, which unpacks the wheels into
+# build/mjsim instead of touching your site-packages:
+#
+#   make env-setup
+#   PYTHONPATH=sim/python:build/mjsim python3 -m pistr_sim.env.cli demo
+#
+# MuJoCo is Apache-2.0 and ships CPU-only wheels for Linux, macOS (x86_64 and
+# arm64) and Windows; no CUDA or display is required.
+mujoco>=3.2,<5
