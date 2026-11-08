@@ -1,0 +1,82 @@
+# Citation metadata for this repository.
+#
+# Two levels are described here on purpose:
+#   * the top-level block describes this repository's companion code, and
+#   * `preferred-citation` is the paper this code implements.
+#
+# GitHub renders `preferred-citation` for "Cite this repository", which is what we
+# want: the paper is the citable artefact, not this code.
+#
+# NOTE on `license`: this repository carries NO license (the upstream
+# wcleithinking/PI-STR-for-Quadrotor had no LICENSE file either), so the field is
+# deliberately absent. Do not add `license:` here until a license has actually been
+# granted in writing -- see docs/licensing.md.
+cff-version: 1.2.0
+message: "If you use this code or the model it contains, please cite the paper below."
+type: software
+title: "PI-STR for Quadrotor"
+abstract: >-
+  Firmware (Arduino Due), a MATLAB study and a Python 3D simulator for a quadrotor
+  tracking controller that combines an outer PI loop with an inner self-tuning
+  regulator: recursive least squares identifies a discrete ARX model of the rate
+  channel online and pole placement retunes the inner loop from the identified model.
+keywords:
+  - quadrotor
+  - self-tuning regulator
+  - adaptive control
+  - pole placement
+  - recursive least squares
+  - flight control
+  - Arduino Due
+authors:
+  - family-names: Lei
+    given-names: Wenchao
+    email: wcleithinking@gmail.com
+    alias: wcleithinking
+    website: "https://github.com/wcleithinking"
+repository-code: "https://github.com/wcleithinking/PI-STR-for-Quadrotor"
+url: "https://github.com/wcleithinking/PI-STR-for-Quadrotor"
+# No `date-released`: this repository mixes the 2018 original code (last upstream
+# commit 2018-07-09) with later refactoring work, so a single date would be wrong.
+references:
+  - type: article
+    title: >-
+      Robust Adaptive Tracking Control for Quadrotors by Combining PI and
+      Self-Tuning Regulator
+    authors:
+      - family-names: Lei
+        given-names: Wenchao
+      - family-names: Li
+        given-names: Chanying
+      - family-names: Chen
+        given-names: "Michael Z. Q."
+    journal: "IEEE Transactions on Control Systems Technology"
+    volume: 27
+    issue: 6
+    start: 2663
+    end: 2671
+    year: 2019
+    month: 11
+    doi: "10.1109/TCST.2018.2872462"
+    url: "https://doi.org/10.1109/TCST.2018.2872462"
+preferred-citation:
+  type: article
+  title: >-
+    Robust Adaptive Tracking Control for Quadrotors by Combining PI and
+    Self-Tuning Regulator
+  authors:
+    - family-names: Lei
+      given-names: Wenchao
+    - family-names: Li
+      given-names: Chanying
+    - family-names: Chen
+      given-names: "Michael Z. Q."
+  journal: "IEEE Transactions on Control Systems Technology"
+  volume: 27
+  issue: 6
+  start: 2663
+  end: 2671
+  year: 2019
+  month: 11
+  doi: "10.1109/TCST.2018.2872462"
+  url: "https://doi.org/10.1109/TCST.2018.2872462"
