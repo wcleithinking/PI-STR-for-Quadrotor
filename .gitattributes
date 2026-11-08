@@ -1,0 +1,51 @@
+# ---------------------------------------------------------------------------
+# Line endings and binary classification.
+#
+# Default: let git detect text and store normalised (LF) blobs. New files added
+# from now on are LF in the repository.
+# ---------------------------------------------------------------------------
+* text=auto
+
+# --- Legacy trees are CRLF-locked on purpose -------------------------------
+# The 2018 firmware and MATLAB sources were committed with CRLF (some files with
+# mixed endings). Applying `text=auto` normalisation to them would turn the next
+# edit of any one line into a whole-file diff. `-text` keeps those blobs
+# byte-identical, so a one-line change stays a one-line change.
+#
+# If you ever do want to normalise them, do it as a *dedicated* commit:
+#     git add --renormalize . && git commit -m "Normalise line endings"
+# and do not mix it with functional changes.
+firmware/Quadrotor_Mode_I_Arduino_Due/**  -text
+firmware/Quadrotor_Mode_II_Arduino_Due/** -text
+firmware/libraries/**                     -text
+firmware/readme.txt                       -text
+sim/matlab/**                             -text
+
+# --- Binary files (no EOL conversion, no textual diff) ---------------------
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.bmp     binary
+*.pdf     binary
+*.zip     binary
+*.gz      binary
+*.mat     binary
+*.fig     binary
+*.npy     binary
+*.npz     binary
+*.pt      binary
+*.pth     binary
+*.onnx    binary
+*.hex     binary
+*.elf     binary
+*.bin     binary
+*.a       binary
+*.so      binary
+*.dylib   binary
+*.pyc     binary
+
+# --- Generated / vendored code --------------------------------------------
+# Vendored third-party code and the SdFat library are kept as-is: no diff noise.
+firmware/libraries/SdFat/** linguist-vendored
+*.cff                   text

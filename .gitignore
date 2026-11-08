@@ -1,0 +1,102 @@
+# ---------------------------------------------------------------------------
+# PI-STR-for-Quadrotor
+#
+# Keep the repository small: the legacy firmware/MATLAB sources are what matters,
+# every generated artefact (build trees, caches, simulation output) is excluded.
+# ---------------------------------------------------------------------------
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+/.venv/
+# NOTE: a bare `env/` here used to swallow sim/python/pistr_sim/env/ (the 3-D
+# environment package, docs/3D_ENVIRONMENT.md). Only a *root* env/ is a venv.
+/env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+
+# Python build output (setuptools / wheels); `build/` is shared with CMake below
+dist/
+*.whl
+
+# --- Simulation output ------------------------------------------------------
+# Directory policy (agreed with the experiment work):
+#   results/metrics.csv   tracked  -- the evidence table, one row per run
+#   results/*.png         ignored  -- regenerated per run, too large to track
+#   docs/figures/*.png    tracked  -- curated figures referenced by README/docs
+# `make sim` / `python3 -m pistr_sim.cli run` write into results/.
+results/*
+!results/.gitkeep
+!results/metrics.csv
+# docs/figures/ is intentionally NOT ignored: copy the handful of figures worth
+# keeping there instead of pointing documentation at results/.
+
+# --- C++ / CMake (host tests) ----------------------------------------------
+# `cmake -S . -B build` — the build tree is never committed.
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+compile_commands.json
+.cache/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# --- PlatformIO / Arduino firmware -----------------------------------------
+# `pio run` drops a workspace of several hundred MB here.
+.pio/
+.pioenvs/
+.piolibdeps/
+.pio/build/
+*.hex
+*.elf
+*.bin
+*.map
+*.su
+
+# --- MATLAB -----------------------------------------------------------------
+*.mat
+*.fig
+*.asv
+*.mex*
+*.autosave
+slprj/
+codegen/
+*.mlint*
+
+# --- Models / data dumps ----------------------------------------------------
+*.pt
+*.pth
+*.onnx
+*.ckpt
+*.h5
+*.npz
+*.npy
+*.bag
+
+# --- Editors / OS -----------------------------------------------------------
+.DS_Store
+._*
+Thumbs.db
+.idea/
+*.swp
+*.swo
+.vscode/*
+!.vscode/extensions.json

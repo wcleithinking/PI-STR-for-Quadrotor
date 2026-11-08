@@ -66,10 +66,13 @@ void Controller_run() {
   PWM_ref[2] = -FeedAll[IndexRoll] - FeedAll[IndexPitch] + FeedAll[IndexYaw] + FeedAll[IndexAltitude];
   PWM_ref[3] =  FeedAll[IndexRoll] - FeedAll[IndexPitch] - FeedAll[IndexYaw] + FeedAll[IndexAltitude];
 #endif
-#ifdef DEBUG
-  for (int i = 0; i < 4; i++) PWM_out[i] = PWM_MIN;
-#else
+  // Motor output policy (see Config.h / SAFETY_NOTES.md).  `DEBUG` no longer has any
+  // influence here: the only thing that can pin the outputs is MOTOR_ENABLE == 0, and
+  // that interlock also forces ARM_flag = 0 so the state machine cannot lie.
+#if MOTOR_ENABLE
   for (int i = 0; i < 4; i++) PWM_out[i] = constrain(PWM_ref[i], PWM_MIN, PWM_MAX);
+#else
+  for (int i = 0; i < 4; i++) PWM_out[i] = PWM_MIN;
 #endif
 }
 

@@ -22,7 +22,7 @@ float eTerm_STR_inner[3] = {0, 0, 0};
 float STR_controller(uint8_t IndexAngle) {
   STR_flag = 1;
   uint8_t Index = IndexAngle;
-  float STR_out;
+  // --- outer loop (unchanged: same gains, same period, same order) ---
   eTerm_STR_outer[Index]  = Angle_eulerdesire[Index] - Angle_newestimate[Index] * RadToDeg;
   eTerm_STR_inner[Index]  = Rate_middledesire[Index]  - Rate_threemeasure[Index]  * RadToDeg;
   PTerm_STR_outer[Index]  = Kp_STR_outer * eTerm_STR_outer[Index];
@@ -31,15 +31,24 @@ float STR_controller(uint8_t IndexAngle) {
   float output_desired = PTerm_STR_outer[Index] + ITerm_STR_outer[Index] + DTerm_STR_outer[Index];
   float output_measure = Rate_threemeasure[Index] * RadToDeg;
   Rate_middledesire[Index] = output_desired;
-  mySTR.update_output(output_desired, output_measure);
-  mySTR.run_estimator(&a1, &a2, &b0, &b1);
-  mySTR.run_controller(&STR_out, FeedBackMax[Index]);
+  // --- inner loop: PI-STR core (firmware/lib/str_core) ---
+  // Legacy tick order for Mode II: sample/shift -> estimator -> control law.
+  mySTR.begin_tick(output_desired, output_measure);
+  mySTR.update_estimator();
+  const float STR_out = mySTR.compute_control(FeedBackMax[Index]);
+  // The realised command is committed from STR_updatedata() once the mixer ran.
+  // Publish the current estimates for the SD log (columns unchanged).
+  const str_core::Str2f::Vec& theta_hat = mySTR.theta_hat();
+  a1 = theta_hat[0];
+  a2 = theta_hat[1];
+  b0 = theta_hat[2];
+  b1 = theta_hat[3];
   return STR_out;
 }
 
 void STR_updatedata() {
   if (STR_flag == 1) {
-    float u_actual;
+    float u_actual = 0;  // the switch below is exhaustive for the shipped frame type
 #if defined(QuadP)
     switch (STR_Index) {
       case 0:
@@ -50,6 +59,9 @@ void STR_updatedata() {
         break;
       case 2:
         u_actual = (-PWM_out[0] + PWM_out[1] - PWM_out[2] + PWM_out[3]) / 4;
+        break;
+      default:
+        u_actual = 0;
         break;
     }
 #elif defined(QuadX)
@@ -63,9 +75,12 @@ void STR_updatedata() {
       case 2:
         u_actual = (PWM_out[0] - PWM_out[1] + PWM_out[2] - PWM_out[3]) / 4;
         break;
+      default:
+        u_actual = 0;
+        break;
     }
 #endif
-    mySTR.get_u_actual(u_actual);
+    mySTR.commit_actual(u_actual);
     STR_flag = 0;
   }
 }

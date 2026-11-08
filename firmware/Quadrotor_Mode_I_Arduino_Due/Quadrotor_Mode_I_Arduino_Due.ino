@@ -20,7 +20,7 @@
 /****************************************************************************/
 /*
    This project is maintained by Wenchao Lei, email: wcleithinking@gmail.com.
-   Mode II: The PI-STR-based Inner-Outer Loop Structure
+   Mode I: The Single STR Structure
 */
 /****************************************************************************/
 /*
@@ -35,32 +35,63 @@
 #include <Servo.h>
 #include <IMU.h>
 #include <SdFat.h>
+// <STR.h> is a deprecated one-line compatibility shim that pulls in the shared core
+// (firmware/lib/str_core/str_core.h: pure C++17, no Arduino headers, host tested by
+// tests/cpp).  The legacy STR class is gone; Mode I uses the 3rd-order instantiation.
 #include <STR.h>
 Servo     motor[4];
 IMU       myIMU;
-STR       mySTR;
+#ifdef STR_v1
+str_core::Str3f mySTR;
+#endif
 /****************************************************************************/
 // States of Vehicle, from Sensors and Filters
-float Gyro_threemeasure[3]  = {0, 0, 0};
-float Gyro_biasestimate[3]  = {0, 0, 0};
-float Angle_oldestimate[3]  = {0, 0, 0};
-float Angle_newestimate[3]  = {0, 0, 0};
-float Angle_offlinebias[3]  = {0, 0, 0};
-float Angle_eulerdesire[3]  = {0, 0, 0};
-float Rate_threemeasure[3]  = {0, 0, 0};
-float Rate_middledesire[3]  = {0, 0, 0};
+float Gyro_measure_old[3]   = {0, 0, 0};
+float Gyro_measure_new[3]   = {0, 0, 0};
+float Gyro_measure[3]       = {0, 0, 0};
+float Gyro_bias_estimate[3] = {0, 0, 0};
+float Angle_estimate[3]     = {0, 0, 0};
+float Angle_measure[3]      = {0, 0, 0};
+float Angle_bias[3]         = {0, 0, 0};
+float Angle_desire[3]       = {0, 0, 0};
+float Rate_measure[3]       = {0, 0, 0};
+float Rate_bias[3]          = {0, 0, 0};
+float Rate_desire[3]        = {0, 0, 0};
+// Initial Values for STR-Estimator
+#ifdef STR_v1
+float a1[3] = { -1.55, -1.55, -1.55};
+float a2[3] = {  0.55,  0.55,  0.55};
+float a3[3] = { -0.18, -0.18, -0.18};
+float b0[3] = {0.02, 0.02, 0.02};
+float b1[3] = {0.02, 0.02, 0.02};
+float b2[3] = {0.02, 0.02, 0.02};
+#endif
+/****************************************************************************/
 // Motor Variables
 bool ARM_flag = 0;
 uint16_t RC[4] = {PWM_MIN, PWM_MIN, PWM_MIN, PWM_MIN};
 int PWM_ref[4] = {PWM_MIN, PWM_MIN, PWM_MIN, PWM_MIN};
 int PWM_out[4] = {PWM_MIN, PWM_MIN, PWM_MIN, PWM_MIN};
 // Main Loop Setting
-float dt = LOOP_period / 1000;
-uint32_t loop_index  = 0;
-uint32_t time_diff[4] = {0, 0, 0, 0}; // timer0, timer1, timer2, timer3 for loop, roll, pitch, yaw, respectively
-uint8_t time_Index = 0;
-volatile unsigned long time_previous[4], time_current[4];
+float dt        = 0.01;
+int loop_index  = 0;
+int time_diff   = 0;
+unsigned long time_previous, time_current;
+#ifdef STR_v1
+int time_STR_diff;
+volatile unsigned long time_STR_previous, time_STR_current;
+#endif
+// Debug
+#ifdef DEBUG
 volatile unsigned long time_start, time_end;
+#ifdef STR_v1
+unsigned long time_STR_start, time_STR_end;
+#endif
+#endif
+// Log
+#ifdef LOG
+unsigned long errorCount = 0;
+#endif
 /****************************************************************************/
 /****************************************************************************/
 void setup() {
@@ -74,47 +105,42 @@ void setup() {
   Receiver_init();
   myIMU.init(3, 4, 3, 4, 1, dt);
 #ifdef STR_v1
-  float atemp = 54, btemp = 64;
-  float a1temp = -1 - exp(atemp * STR_period / 1000);
-  float a2temp = exp(atemp * STR_period / 1000);
-  float b0temp = btemp / atemp * STR_period + btemp / (atemp * atemp) * (a2temp - 1);
-  float b1temp = btemp / atemp * (1 - a2temp) * (1 - a2temp) / atemp - b0temp * a2temp;
-  mySTR.init_estimator((float)0.99, (float)5, a1temp, a2temp, b0temp, b1temp);
-  mySTR.init_controller(0.7, 5, 0, STR_period / 1000);
+  // Configure the shared core: initial parameter guess (a1..b2) and the per-axis
+  // reference polynomials.  Defined in Controller.ino, where those constants live.
+  STR_init();
 #endif
 #ifdef LOG
   Log_init();
 #endif
   Led_blink(3);
   ARM_flag = 0;
-  Led_armstate(ARM_flag);
+  Led_armstate();
 }
 
 void loop() {
+  // The ARM state machine lives in exactly one place now (Arm_update(), defined in
+  // Motor.ino); it used to be duplicated here and inside Motor_control().
   while (ARM_flag == 0) {
-    Led_armstate(ARM_flag);
-    Receiver_copy();
-    if (RC[IndexRoll] <= (PWM_MAX - 10) || RC[IndexPitch] <= (PWM_MAX - 10)) {
-      ARM_flag = 0;
-      Led_armstate(ARM_flag);
-    }
-    else {
-      ARM_flag = 1;
-      Led_armstate(ARM_flag);
-      Controller_cleardata();
-      for (int i = 0; i < 4; i++) time_previous[i] = millis();
-    }
-  }
-  time_current[0] = millis();
-  if (time_current[0] - time_previous[0] >= LOOP_period ) {
-#ifdef DEBUG
-    time_diff[0] = time_current[0] - time_previous[0];
+    Arm_update();
+#if MOTOR_ENABLE
+    // Stay here until the two arm switches are raised.
+#else
+    // MOTOR_ENABLE == 0: the vehicle can never arm.  Fall through to the main body so
+    // that (with MOTOR_TEST) the control chain and the SD logger still run while every
+    // motor output stays at PWM_MIN.
+    break;
 #endif
-    time_previous[0] = time_current[0];
+  }
+  time_current = millis();
+  if (time_current - time_previous >= dt * 1000 ) {
+#ifdef DEBUG
+    time_diff = time_current - time_previous;
+#endif
+    time_previous = time_current;
     myIMU.sample();
-    myIMU.copygyro(Gyro_threemeasure);
-    myIMU.attitude_filter(Angle_oldestimate, Gyro_biasestimate);
-    Sensor_calibrate();
+    myIMU.copygyro(Gyro_measure_old);
+    myIMU.attitude_filter(Angle_estimate, Gyro_bias_estimate);
+    Angle_calibrate();
     Receiver_copy();
     Motor_control();
     Motor_update();
@@ -133,24 +159,6 @@ void loop() {
 #ifdef DEBUG
   Serial_debug();
 #endif
-}
-/****************************************************************************/
-/****************************************************************************/
-void Sensor_calibrate() {
-  if (loop_index < 100) {
-  }
-  else if ((loop_index >= 100) && (loop_index < 300)) {
-    for (int i = 0; i < 3; i++) Angle_offlinebias[i]  += Angle_oldestimate[i];
-  }
-  else {
-    if (loop_index == 300) {
-      for (int i = 0; i < 3; i++) Angle_offlinebias[i] *= 0.005;
-    }
-    for (int i = 0; i < 3; i++) {
-      Angle_newestimate[i]  = Angle_oldestimate[i] - Angle_offlinebias[i];
-      Rate_threemeasure[i]  = Gyro_threemeasure[i] - Gyro_biasestimate[i];
-    }
-  }
 }
 /****************************************************************************/
 /****************************************************************************/

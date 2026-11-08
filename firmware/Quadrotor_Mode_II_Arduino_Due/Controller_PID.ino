@@ -44,6 +44,10 @@ float PID_controller(uint8_t IndexAngle) {
   eTerm_inner[Index]  = Rate_middledesire[Index]  - Rate_threemeasure[Index]  * RadToDeg;
   PTerm_outer[Index]  = Kp_outer * eTerm_outer[Index];
   ITerm_outer[Index] += Ki_outer * eTerm_outer[Index] * dt;
+  // Anti-windup (stage-A audit fix): the output is clamped *after* the sum, so the
+  // integrator has to be clamped as well, otherwise it keeps accumulating while the
+  // actuator is saturated and the loop overshoots on the way back.
+  ITerm_outer[Index] = constrain(ITerm_outer[Index], -FeedBackMax[Index], FeedBackMax[Index]);
   DTerm_outer[Index]  = Kd_outer * eTerm_inner[Index];
   PID_out = PTerm_outer[Index] + ITerm_outer[Index] + DTerm_outer[Index];
 #elif defined(PID_v2)
@@ -51,6 +55,7 @@ float PID_controller(uint8_t IndexAngle) {
   eTerm_inner[Index]  = Rate_middledesire[Index]  - Rate_threemeasure[Index]  * RadToDeg;
   PTerm_outer[Index]  = Kp_outer * eTerm_outer[Index];
   ITerm_outer[Index] += Ki_outer * eTerm_outer[Index] * dt;
+  ITerm_outer[Index] = constrain(ITerm_outer[Index], -FeedBackMax[Index], FeedBackMax[Index]);
   DTerm_outer[Index]  = Kd_outer * eTerm_inner[Index];
   Rate_middledesire[Index]  = PTerm_outer[Index] + ITerm_outer[Index] + DTerm_outer[Index];
   Rate_middledesire[Index]  = constrain(Rate_middledesire[Index], -FeedBackMax[Index], FeedBackMax[Index]);
@@ -58,6 +63,7 @@ float PID_controller(uint8_t IndexAngle) {
   eTerm_innerinner[Index] = (eTerm_inner[Index] - eTerm_inner_old[Index]) / dt;
   PTerm_inner[Index]  = Kp_inner * eTerm_inner[Index];
   ITerm_inner[Index] += Ki_inner * eTerm_inner[Index] * dt;
+  ITerm_inner[Index] = constrain(ITerm_inner[Index], -FeedBackMax[Index], FeedBackMax[Index]);
   DTerm_inner[Index]  = Kd_inner * eTerm_innerinner[Index];
   PID_out = PTerm_inner[Index] + ITerm_inner[Index] + DTerm_inner[Index];
 #elif defined(PID_v3)
@@ -66,6 +72,7 @@ float PID_controller(uint8_t IndexAngle) {
   DTerm[Index]  = K[Index] * (exp(-dt * N[Index] / Td[Index]) * DTerm_old[Index] + N[Index] * (eTerm[Index] - eTerm_old[Index]));
   PID_out       = PTerm[Index] + ITerm[Index] + DTerm[Index];
   ITerm[Index]  = K[Index] * (ITerm[Index] + (dt / Ti[Index]) * eTerm[Index]);
+  ITerm[Index]  = constrain(ITerm[Index], -FeedBackMax[Index], FeedBackMax[Index]);
 #endif
   PID_out = constrain(PID_out, -FeedBackMax[Index], FeedBackMax[Index]);
   return PID_out;
